@@ -71,11 +71,41 @@
           onDebouncedAREngagement: function (ms) {
             post({ type: "track", event: "debounced_ar", durationMs: ms });
           },
+
+          // Zoom boundaries (3D).
+          onMaxZoomEnter: function () {
+            post({ type: "track", event: "zoom_max_enter" });
+          },
+          onMaxZoomLeave: function () {
+            post({ type: "track", event: "zoom_max_leave" });
+          },
+          onMinZoomEnter: function () {
+            post({ type: "track", event: "zoom_min_enter" });
+          },
+          onMinZoomLeave: function () {
+            post({ type: "track", event: "zoom_min_leave" });
+          },
+
+          // Vertical-angle boundaries (3D).
+          onMinVerticalAngleEnter: function () {
+            post({ type: "track", event: "angle_min_enter" });
+          },
+          onMinVerticalAngleLeave: function () {
+            post({ type: "track", event: "angle_min_leave" });
+          },
+          onMaxVerticalAngleEnter: function () {
+            post({ type: "track", event: "angle_max_enter" });
+          },
+          onMaxVerticalAngleLeave: function () {
+            post({ type: "track", event: "angle_max_leave" });
+          },
         });
 
         // Expose the instance so native can drive it (launchAR, rotate, …).
         window.__shopar = plugin;
         post({ type: "ready", mode: mode });
+        // Explicit launch-success event (launch failure surfaces via "error").
+        post({ type: "track", event: "launch_success", mode: mode });
       } catch (e) {
         post({
           type: "error",
