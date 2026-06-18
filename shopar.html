@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+  ShopAR host page.
+
+  This file is NOT compiled into the Flutter app. Deploy it to any https host
+  (GitHub Pages, a gist via raw.githack.com, S3, AY web host, …) so the WebView
+  loads it from a real secure origin. That real origin is what lets the browser
+  grant camera access for the AR / virtual try-on (getUserMedia requires a
+  secure context — an inline loadHtmlString document cannot do this).
+
+  The Flutter app loads it with query params, e.g.:
+    https://your-host/shopar.html?apiKey=XXXX&sku=osk61-ki4277&mode=AR
+    mode = "3D" (viewer) | "AR" (virtual try-on)
+
+  It relays the plugin's lifecycle/engagement/error events back to native via
+  the `Flutter` JavaScript channel registered by ShopArWebView.
+-->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
+  <style>
+    html, body, #shopar { margin: 0; padding: 0; width: 100%; height: 100%; }
+  </style>
+  <!-- ShopAR plugin browser build (served from jsDelivr, ShopAR's default CDN). -->
+  <script src="https://cdn.jsdelivr.net/npm/shopar-plugin@1.2.0/dist/shopar-plugin.js"></script>
+</head>
+<body>
+  <div id="shopar"></div>
+
+  <script>
+    // Send a message to native if the Flutter channel exists; otherwise log
+    // (so the page is also testable in a plain desktop browser).
+    function post(obj) {
+      var msg = JSON.stringify(obj);
+      if (window.Flutter && window.Flutter.postMessage) {
+        window.Flutter.postMessage(msg);
+      } else {
+        console.log("[shopar]", msg);
+      }
+    }
+
+    function param(name, fallback) {
+      var value = new URLSearchParams(window.location.search).get(name);
+      return value === null ? fallback : value;
+    }
+
+    async function start() {
+      var apiKey = param("apiKey", "");
+      var sku = param("sku", "");
+      var mode = param("mode", "3D"); // "3D" | "AR"
+
+      try {
+        var plugin = await ShopAR.plugin.setup({
+          apiKey: apiKey,
+          sku: sku,
+          targetElement: document.getElementById("shopar"),
+          initialState: mode,
+          onFirst3DEngagement: function () {
+            post({ type: "track", event: "first_3d_engagement" });
+          },
+          onFirstAREngagement: function () {
+            post({ type: "track", event: "first_ar_engagement" });
+          },
+          onDebounced3DEngagement: function (ms) {
+            post({ type: "track", event: "debounced_3d", durationMs: ms });
+          },
+          onDebouncedAREngagement: function (ms) {
+            post({ type: "track", event: "debounced_ar", durationMs: ms });
+          },
+        });
+
+        // Expose the instance so native can drive it (launchAR, rotate, …).
+        window.__shopar = plugin;
+        post({ type: "ready", mode: mode });
+      } catch (e) {
+        post({
+          type: "error",
+          name: e && e.name,
+          message: e && e.message,
+        });
+      }
+    }
+
+    window.addEventListener("load", start);
+  </script>
+</body>
+</html>
